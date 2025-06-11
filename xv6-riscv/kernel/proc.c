@@ -26,6 +26,30 @@ extern char trampoline[]; // trampoline.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
+struct proc* stride_schedulling(void) {
+  
+  struct proc *response = 0;
+  struct proc *p;
+   for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->state == RUNNABLE) {
+      if( response == 0 || (p->tickets_count < response->tickets_count) ) {
+        response = p;
+      }
+      else if(p->tickets_count == response->tickets_count) {
+        if(p->pid > response->pid) {
+          response = p;
+        }
+      }
+      release(&p->lock);
+    } else {
+      release(&p->lock);
+    }
+  }
+  
+  return response;
+}
+
 // Allocate a page for each process's kernel stack.
 
 // Map it high in memory, followed by an invalid
@@ -333,7 +357,6 @@ int forkwithticket(int ticket)
   release(&wait_lock);
 
   np->state = RUNNABLE;
-  //addToQueue(&procpriorityqueue[np->class], np);
   release(&np->lock);
 
   return pid;
@@ -471,35 +494,31 @@ void scheduler(void)
   {
     intr_on();
 
-    // int class = lottery_select_class();
-    // if (class == -1)
-    // {
-    //   asm volatile("wfi");
-    //   continue;
-    // }
+    struct proc *p = stride_schedulling();
 
-    // struct procpriority *q = &procpriorityqueue[class];
-    // struct proc *p = roundRobin(q);
+    if (p == 0)
+    {
+      asm volatile("wfi");
+      continue;
+    }
 
-    // if (p == 0)
-    //   continue;
+    acquire(&p->lock);
 
-    // acquire(&p->lock);
+    if (p->state != RUNNABLE)
+    {
+      release(&p->lock);
+      continue;
+    }
 
-    // if (p->state != RUNNABLE)
-    // {
-    //   release(&p->lock);
-    //   continue;
-    // }
+    p->state = RUNNING;
+    c->proc = p;
 
-    // p->state = RUNNING;
-    // c->proc = p;
+    swtch(&c->context, &p->context);
 
-    // swtch(&c->context, &p->context);
+    c->proc = 0;
+    p->tickets_count = p->ticket + p->tickets_count;
 
-    // c->proc = 0;
-
-    // release(&p->lock);
+    release(&p->lock);
   }
 }
 
@@ -535,7 +554,6 @@ void yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
-  //addToQueue(&procpriorityqueue[p->class], p);
   sched();
   release(&p->lock);
 }
@@ -608,7 +626,6 @@ void wakeup(void *chan)
       if (p->state == SLEEPING && p->chan == chan)
       {
         p->state = RUNNABLE;
-        //addToQueue(&procpriorityqueue[p->class], p);
       }
       release(&p->lock);
     }
