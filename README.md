@@ -47,6 +47,20 @@ Para sair do xv6 utilizar o comando ctrl+A X
     $U/_code\
     $U/_startcode\
 ```
+### defs.h, syscall.c, syscall.h:Add commentMore actions
+
+-   nestes arquivo foram declaradas as chamadas da nova função forkwithticket que é um fork com retorno int e criada as chamadas de sistemas necessárias para o mesmo
+-   Em outros diversos arquivos o fork padrão foi substituido pelo forkwithticket
+-   O inteiro pasaso nessa função é quantidade máxima de unidades de tempo que o processo pode ficar na CPU.
+
+```c
+//defs.h
+   int forkwithticket(int class);
+//syscall.c
+    [SYS_forkwithticket] sys_forkwithticket
+//syscall.h
+    #define SYS_forkwithticket
+```
 
 ### proc.h:
 
