@@ -48,35 +48,23 @@ Para sair do xv6 utilizar o comando ctrl+A X
     $U/_startcode\
 ```
 
-////ARRUMAR DAQUI PRA BAIXO
 ### proc.h:
 
 -   Foi adicionado à estrutura (objeto) do processo um atributo que armazena o próximo processo da fila,
 
 ```c
-struct proc \*next;
+int ticket;        //Define o limite máximo de unidades de tempo que o processo pode passar na CPU
+int tickets_count; //Conta quantas unidades de tempo o processo já passou na CPU (acumulativo)
 ```
-
--   Acrescentado a struct procpriority é a estrutura das filas de processos cada uma de uma prioridade
-
-```c
-struct procpriority {
-    struct proc *head;
-    struct proc *tail;
-    struct spinlock locked;
-};
-```
-
+OBS: no momento da criação de um processo é passado um valor inteiro que definrá o seu tempo máximo de execução na CPU, podendo ser diferente de processo para processe. EX: forkwithticket(20)
 ### proc.c:
 
--   Foram adcionadas as seguintes funções referentes a manutenção das filas de processo:
+-   Foi adicionado a função que efetua a escolha do processo a ser executado (stride_schedulling):
 
-    -   addToQueue: adiciona um novo processo a fila
-    -   ret: Pega a fila da classe sorteada e executa o primeiro processo da fila se o mesmo não for nulo e estiver com o status RUNNABLE
-    -   roundRobin: Pega o primeiro processo da fila e joga-o para o fim da fila e encontra o primeiro processo RUNNABLE para manter como head da fila, dentro dela é chamado o ret para executar o processo, passando como parametro o head da fila
+    -   stride_schedulling: Percorre toda a fila de processos analisando os processos que estão prontos para serem executados, p->state == RUNNABLE, e comparando os mesmos selecionando aquele que tiver o menor tickets_count para ser executado, em caso de empate será seleciona o processo com maior pid
 
 -   Função alterada
-    -   Scheduler: O escalonador em si agora antes de executar o processo o mesmo chama a função de sorteio lottery_select_class() que define qual fila de classe será escolhido o processo e então efetua a chamada do roundRobin para que o processo seja executado
+    -   Scheduler: O escalonador em si agora antes de executar o processo o mesmo chama a função stride_schedulling() que define o processo que será executado.
 
 ### code.c:
 
